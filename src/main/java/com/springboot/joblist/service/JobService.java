@@ -2,6 +2,10 @@ package com.springboot.joblist.service;
 
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -24,7 +28,7 @@ import reactor.core.publisher.Mono;
 public class JobService{
 
     @Transactional
-	public Job[] getAllJob() throws JobFailedToRetrieveException {
+	public Map<String, List<Job>> getAllJob() throws JobFailedToRetrieveException {
         String jobsUrl = "https://dev6.dansmultipro.com/api/recruitment/positions.json";
 		Duration timeoutDuration = Duration.ofMillis(5000);
 		
@@ -35,7 +39,19 @@ public class JobService{
 		try {
 			JsonNode jobsJson = objectMapper.readTree(messageBody);
 			result = objectMapper.convertValue(jobsJson, new TypeReference<Job[]>(){});
-            return result;
+			Map<String, List<Job>> jobMap = new HashMap<>();
+			for(Job job : result){
+				if(jobMap.containsKey(job.getLocation())){
+					List<Job> currenList = jobMap.get(job.getLocation());
+					currenList.add(job); 
+					jobMap.put(job.getLocation(), currenList);
+				}else{
+					List<Job> newList = new ArrayList<>();
+					newList.add(job);
+					jobMap.put(job.getLocation(), newList);
+				}
+			}
+			return jobMap;
 		} catch (JsonProcessingException | IllegalArgumentException e) {
 			e.printStackTrace();
 			throw new JobFailedToRetrieveException(e.getMessage());
